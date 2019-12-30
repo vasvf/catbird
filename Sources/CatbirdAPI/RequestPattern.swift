@@ -4,12 +4,6 @@ import Foundation
 ///
 /// The intercepted request must return `ResponseData`.
 public struct RequestPattern: Codable, Hashable {
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(url.value)
-        hasher.combine(method)
-        hasher.combine(headerFields)
-    }
     
     /// HTTP method.
     public let method: String

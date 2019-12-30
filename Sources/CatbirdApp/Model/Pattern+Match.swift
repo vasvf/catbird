@@ -1,17 +1,15 @@
 import CatbirdAPI
 
 extension Pattern {
-    
-    func match(_ someValue: String) -> Bool {
+    func match(_ string: String) -> Bool {
         let pattern = value
         switch kind {
         case .equal:
-            return pattern == someValue
+            return pattern == string
         case .wildcard:
-            return Wildcard(pattern: pattern).check(someValue)
+            return Wildcard(pattern: pattern).check(string)
         case .regexp:
-            return someValue.range(of: pattern , options: [.regularExpression, .caseInsensitive]) != nil
+            return string.range(of: pattern , options: [.regularExpression, .caseInsensitive]) != nil
         }
     }
-    
 }

@@ -23,8 +23,8 @@ public struct ResponseData: Codable, Equatable {
     public init(
         statusCode: Int = 200,
         headerFields: [String: String] = [:],
-        body: Data? = nil) {
-
+        body: Data? = nil
+    ) {
         self.statusCode = statusCode
         self.headerFields = headerFields
         self.body = body

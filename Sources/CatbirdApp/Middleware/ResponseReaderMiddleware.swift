@@ -1,33 +1,54 @@
-import Vapor
+import Nest
 
-final class ResponseReaderMiddleware: Middleware, Service {
+final class ResponseReaderMiddleware: Middleware {
 
-    private let store: ResponseReader
+    private let store: HTTPResponseStore
 
-    init(store: ResponseReader) {
+    init(store: HTTPResponseStore) {
         self.store = store
     }
 
-    /// Called with each `Request` that passes through this middleware.
-    ///
-    /// - SeeAlso: `Middleware`.
-    func respond(to request: Request, chainingTo next: Responder) throws -> Future<Response> {
-        return next
-            .handle(request)
-            .catchMap { [store] (error: Error) throws -> Response in
-                guard error is Abort else { throw error }
-                return try store.response(for: request)
+    // MARK: - Middleware
+
+    func response(_ request: HTTPRequest, next route: Route) throws -> EventLoopFuture<HTTPResponse> {
+        return request.eventLoop
+            .makeFutureThrowing { try route.response(request) }
+            .flatMapError { [store] (error: Error) -> EventLoopFuture<HTTPResponse> in
+                guard (error as? HTTPError)?.status == .notFound else {
+                    return request.eventLoop.makeFailedFuture(error)
+                }
+                return store.response(for: request)
             }
     }
 
 }
 
-private extension Responder {
-    func handle(_ request: Request) -> Future<Response> {
-        do {
-            return try self.respond(to: request)
-        } catch {
-            return request.eventLoop.newFailedFuture(error: error)
-        }
+final class ResponseStoreMiddleware: Middleware, CustomStringConvertible {
+
+    private let store: HTTPResponseStore2
+
+    init(store: HTTPResponseStore2) {
+        self.store = store
     }
+
+    // MARK: - CustomStringConvertible
+
+    var description: String {
+        return "Catbird.ResponseStoreMiddleware(store: \(store)"
+    }
+
+    // MARK: - Middleware
+
+    func response(_ request: HTTPRequest, next route: Route) throws -> EventLoopFuture<HTTPResponse> {
+        return request.eventLoop
+            .makeFutureThrowing { try route.response(request) }
+            .flatMapError { [store] (error: Error) -> EventLoopFuture<HTTPResponse> in
+                guard (error as? HTTPError)?.status == .notFound else {
+                    return request.eventLoop.makeFailedFuture(error)
+                }
+                return store.response(for: request)
+            }
+    }
+
 }
+

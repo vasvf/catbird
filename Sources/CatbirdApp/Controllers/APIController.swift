@@ -1,47 +1,49 @@
 import CatbirdAPI
-import Vapor
+import Foundation
+import Nest
 
-/// Controls basic CRUD operations on `Mock`s.
-final class APIController: RouteCollection {
+final class InterceptAPIController {
 
-    private let store: ResponseStore
+    private let store: InterseptStore2
 
-    init(store: ResponseStore) {
+    init(store: InterseptStore2) {
         self.store = store
     }
 
-    // MARK: - RouteCollection
+    func upate(_ request: HTTPRequest) throws -> EventLoopFuture<HTTPResponse> {
+        guard let buffer = request.body else {
+            throw HTTPError(.badRequest, message: "Empty body")
+        }
+        let decoder = JSONDecoder()
+        let bag = try decoder.decode(RequestBag.self, from: buffer)
 
-    func boot(router: Router) throws {
-        let group = router.grouped("catbird", "api")
+        guard let data = bag.data else {
+            return store
+                .removeIntercept(for: bag.pattern, on: request.eventLoop)
+                .map { request.response(.noContent) }
+        }
 
-        group.post(RequestBag.self, use: create)
-        group.delete(use: delete)
-        group.delete("clear", use: clear)
+        let body: IOData? = data.body.map { body in
+            var buffer = request.allocator.buffer(capacity: body.count)
+            buffer.writeBytes(body)
+            return IOData.byteBuffer(buffer)
+        }
+        let response = HTTPResponse(
+            version: request.head.version,
+            status: HTTPResponseStatus(statusCode: data.statusCode),
+            headers: HTTPHeaders(data.headerFields.map { $0 }),
+            body: body
+        )
+        let intercept = Intercept(pattern: bag.pattern, response: response)
+        return store
+            .setIntercept(intercept: intercept, on: request.eventLoop)
+            .map { response }
     }
 
-    // MARK: - Action
-
-    func create(_ request: Request, bag: RequestBag) throws -> HTTPStatus {
-        try store.setResponse(data: bag.data, for: bag.pattern)
-        return HTTPStatus.created
-    }
-
-    func delete(_ request: Request) throws -> Future<HTTPStatus> {
-        return try request
-            .content.decode(RequestPattern.self)
-            .map(to: HTTPStatus.self) { [store] pattern in
-                try store.setResponse(data: nil, for: pattern)
-                return HTTPStatus.noContent
-            }
-    }
-
-    func clear(_ request: Request) throws -> HTTPStatus {
-        try store.removeAllResponses()
-        return HTTPStatus.noContent
+    func clear(_ request: HTTPRequest) -> EventLoopFuture<HTTPResponse> {
+        return store
+            .removeAllIntercepts(on: request.eventLoop)
+            .map { request.response(.noContent) }
     }
 
 }
-
-// for post route
-extension RequestBag: Content {}
