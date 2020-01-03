@@ -1,7 +1,3 @@
-public protocol Server {
-    func start(_ address: SocketAddress) throws
-}
-
 public class HTTPServer: Server {
 
     /// HTTP server configuration.

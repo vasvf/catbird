@@ -1,10 +1,7 @@
-import enum NIO.SocketAddress
 import CatbirdApp
 import Foundation
 
 // TODO: CLI
-let address = try SocketAddress.makeAddressResolvingHost("::1", port: 8080)
-
 let enviroment = ProcessInfo.processInfo.environment
 let mocksDir = enviroment["CATBIRD_MOCKS_DIR", default: currentDirectoryPath + "/Mocks"]
 
@@ -15,4 +12,4 @@ let app: App = {
     return App.read(at: URL(string: mocksDir)!)
 }()
 
-try app.start(address)
+try app.start(port: 8080)
